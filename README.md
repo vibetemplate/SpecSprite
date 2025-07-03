@@ -58,8 +58,60 @@ npm start
 ### 在 Cursor 中使用
 
 1. 构建项目：`npm run build`
-2. 在 Cursor 中配置 MCP 服务器
+2. 在 Cursor 中配置 MCP 服务器（示例见下）
 3. 使用 `@specsprite` 开始智能对话
+
+> **完整配置示例**
+>
+> 以下示例展示了在各种环境中添加 **SpecSprite** MCP 服务，使用发布在 npm 的 `specsprite-mcp@latest` 包。
+
+#### Cursor 配置
+
+在 `~/.cursor/settings.json` 中添加：
+
+```json
+{
+  "mcpServers": {
+    "specsprite": {
+      "command": "npx",
+      "args": ["-y", "specsprite-mcp@latest"],
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}
+```
+
+#### Claude Desktop 配置
+
+在 Claude Desktop 的配置文件中加入：
+
+```json
+{
+  "mcpServers": {
+    "specsprite": {
+      "command": "npx",
+      "args": ["specsprite-mcp@latest"],
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}
+```
+
+#### Claude Code (CLI) 配置
+
+使用 Claude Code 时，可通过以下命令注册 **SpecSprite** 服务器（以 *user* 作用域为例）：
+
+```bash
+claude mcp add specsprite -s user -- npx -y specsprite-mcp@latest
+```
+
+> 更多 MCP 配置选项请参考官方文档 <https://docs.anthropic.com/en/docs/claude-code/mcp>。
+
+保存后，即可在对应客户端通过 `@specsprite` 前缀调用 SpecSprite 的工具。
 
 ## 🛠️ 可用工具
 
