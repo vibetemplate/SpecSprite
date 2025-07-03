@@ -381,8 +381,6 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // 启动服务器
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch(console.error);
-}
+main().catch(console.error);
 
 export { server, specSpriteService };
