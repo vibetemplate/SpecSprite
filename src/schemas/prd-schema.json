@@ -1,0 +1,231 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SpecSprite PRD Schema",
+  "description": "产品需求文档 (PRD) 的标准化格式定义",
+  "type": "object",
+  "required": ["metadata", "project", "tech_stack", "features", "specifications", "next_steps"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["name", "version", "generated_at", "confidence_score", "session_id"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "项目名称"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "PRD 版本号"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "生成时间"
+        },
+        "confidence_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "置信度分数 (0-100)"
+        },
+        "session_id": {
+          "type": "string",
+          "description": "会话ID"
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "required": ["type", "description", "target_audience", "key_features"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["blog", "ecommerce", "saas", "portfolio", "landing_page", "generic"],
+          "description": "项目类型"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 1000,
+          "description": "项目描述"
+        },
+        "target_audience": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 200,
+          "description": "目标用户群体"
+        },
+        "key_features": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 100
+          },
+          "minItems": 1,
+          "maxItems": 20,
+          "description": "核心功能列表"
+        },
+        "business_model": {
+          "type": "string",
+          "description": "商业模式"
+        },
+        "scale_expectations": {
+          "type": "string",
+          "enum": ["small", "medium", "large"],
+          "description": "规模预期"
+        }
+      }
+    },
+    "tech_stack": {
+      "type": "object",
+      "required": ["framework", "ui_library", "additional_tools"],
+      "properties": {
+        "framework": {
+          "type": "string",
+          "description": "主框架"
+        },
+        "database": {
+          "type": "string",
+          "description": "数据库选择"
+        },
+        "ui_library": {
+          "type": "string",
+          "description": "UI 库"
+        },
+        "deployment_platform": {
+          "type": "string",
+          "description": "部署平台"
+        },
+        "additional_tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "其他工具和库"
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "required": ["auth", "payment", "admin", "search", "upload", "realtime", "analytics", "email"],
+      "properties": {
+        "auth": {
+          "type": "boolean",
+          "description": "用户认证"
+        },
+        "payment": {
+          "type": "boolean",
+          "description": "支付功能"
+        },
+        "admin": {
+          "type": "boolean",
+          "description": "管理后台"
+        },
+        "search": {
+          "type": "boolean",
+          "description": "搜索功能"
+        },
+        "upload": {
+          "type": "boolean",
+          "description": "文件上传"
+        },
+        "realtime": {
+          "type": "boolean",
+          "description": "实时功能"
+        },
+        "analytics": {
+          "type": "boolean",
+          "description": "数据分析"
+        },
+        "email": {
+          "type": "boolean",
+          "description": "邮件功能"
+        }
+      },
+      "additionalProperties": {
+        "type": "boolean"
+      }
+    },
+    "specifications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "description", "requirements", "dependencies", "implementation_notes"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "功能名称"
+          },
+          "description": {
+            "type": "string",
+            "description": "功能描述"
+          },
+          "requirements": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "功能需求"
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "依赖关系"
+          },
+          "implementation_notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "实现备注"
+          }
+        }
+      },
+      "description": "功能规格说明"
+    },
+    "constraints": {
+      "type": "object",
+      "properties": {
+        "budget": {
+          "type": "string",
+          "enum": ["low", "medium", "high"],
+          "description": "预算约束"
+        },
+        "timeline": {
+          "type": "string",
+          "enum": ["urgent", "normal", "flexible"],
+          "description": "时间约束"
+        },
+        "team_size": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 50,
+          "description": "团队规模"
+        },
+        "complexity_preference": {
+          "type": "string",
+          "enum": ["simple", "standard", "advanced"],
+          "description": "复杂度偏好"
+        }
+      },
+      "description": "项目约束"
+    },
+    "next_steps": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 200
+      },
+      "minItems": 1,
+      "maxItems": 10,
+      "description": "下一步行动计划"
+    }
+  }
+}
