@@ -1,6 +1,6 @@
 {
   "name": "specsprite-mcp",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "VibeGen 需求精灵 (SpecSprite) - MCP-1 智能PRD生成服务",
   "main": "dist/index.js",
   "type": "module",
