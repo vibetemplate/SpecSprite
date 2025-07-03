@@ -10,14 +10,20 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { createRequire } from 'module';
 import { SpecSpriteService } from './core/spec-sprite-service.js';
 import type { GeneratePRDInput, GeneratePRDOutput } from './core/types.js';
 
+const require = createRequire(import.meta.url);
+const servicePackageJson = require('../package.json');
+const mcpPackageJson = require('@modelcontextprotocol/sdk/package.json');
+
 // 服务器配置
 const SERVER_CONFIG = {
-  name: 'specsprite-mcp',
-  version: '1.0.0',
-  description: 'VibeGen 需求精灵 - 智能PRD生成服务'
+  name: servicePackageJson.name,
+  version: servicePackageJson.version,
+  description: servicePackageJson.description,
+  mcpVersion: mcpPackageJson.version,
 };
 
 // 创建 MCP 服务器
@@ -328,7 +334,7 @@ function buildPRDResponse(result: GeneratePRDOutput): string {
 async function main() {
   try {
     console.error('🚀 启动 SpecSprite MCP 服务器...');
-    console.error(`📋 服务信息: ${SERVER_CONFIG.name} v${SERVER_CONFIG.version}`);
+    console.error(`📋 服务信息: ${SERVER_CONFIG.name} v${SERVER_CONFIG.version} (MCP SDK v${SERVER_CONFIG.mcpVersion})`);
     console.error(`🎯 ${SERVER_CONFIG.description}`);
     
     // 初始化服务
