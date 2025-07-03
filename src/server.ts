@@ -12,6 +12,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { createRequire } from 'module';
 import { SpecSpriteService } from './core/spec-sprite-service.js';
+import { ConversationManager } from './core/conversation-manager.js';
 import type { GeneratePRDInput, GeneratePRDOutput } from './core/types.js';
 
 const require = createRequire(import.meta.url);
@@ -32,8 +33,8 @@ const server = new McpServer({
   version: SERVER_CONFIG.version
 });
 
-// 初始化核心服务
-const specSpriteService = new SpecSpriteService(server);
+// 会话管理器 - 跨调用共享状态
+const conversationManager = new ConversationManager();
 
 // ============ MCP 工具注册 ============
 
@@ -60,7 +61,15 @@ server.registerTool(
         .describe('是否继续现有对话（而非开始新对话）')
     }
   },
-  async ({ user_input, session_id, continue_conversation = false }) => {
+  async (params, ctx) => {
+    const { user_input, session_id, continue_conversation = false } = params;
+
+    // 为本次调用创建专属服务实例（按需注入 ctx 以获得 LLM 能力）
+    const specSpriteService = new SpecSpriteService(ctx ?? server, conversationManager);
+
+    // 仅在首次调用时做初始化，之后 promptLoader 等会被缓存 (idempotent)
+    await specSpriteService.initialize();
+
     try {
       console.error(`🎯 SpecSprite 处理用户请求: "${user_input.substring(0, 50)}..."`);
       
@@ -109,7 +118,12 @@ server.registerTool(
       user_response: z.string().describe('用户的回复内容')
     }
   },
-  async ({ session_id, user_response }) => {
+  async (params, ctx) => {
+    const { session_id, user_response } = params;
+
+    const specSpriteService = new SpecSpriteService(ctx ?? server, conversationManager);
+    await specSpriteService.initialize();
+
     try {
       console.error(`💬 继续会话 ${session_id}: "${user_response.substring(0, 30)}..."`);
       
@@ -156,7 +170,7 @@ server.registerTool(
   },
   async ({ session_id }) => {
     try {
-      const sessionInfo = specSpriteService.getSessionInfo(session_id);
+      const sessionInfo = conversationManager.getSessionSummary(session_id);
       
       if (!sessionInfo) {
         return {
@@ -337,10 +351,6 @@ async function main() {
     console.error(`📋 服务信息: ${SERVER_CONFIG.name} v${SERVER_CONFIG.version} (MCP SDK v${SERVER_CONFIG.mcpVersion})`);
     console.error(`🎯 ${SERVER_CONFIG.description}`);
     
-    // 初始化服务
-    await specSpriteService.initialize();
-    console.error('✅ SpecSprite 服务初始化完成');
-    
     // 启动 MCP 服务器
     const transport = new StdioServerTransport();
     await server.connect(transport);
@@ -359,7 +369,7 @@ process.on('SIGINT', async () => {
   console.error('\n🛑 收到关闭信号，正在优雅关闭...');
   
   try {
-    await specSpriteService.cleanup();
+    conversationManager.cleanupExpiredSessions();
     console.error('✅ SpecSprite 清理完成');
     process.exit(0);
   } catch (error) {
@@ -370,7 +380,7 @@ process.on('SIGINT', async () => {
 
 process.on('SIGTERM', async () => {
   console.error('\n🛑 收到终止信号，正在关闭...');
-  await specSpriteService.cleanup();
+  conversationManager.cleanupExpiredSessions();
   process.exit(0);
 });
 
@@ -389,4 +399,4 @@ process.on('unhandledRejection', (reason, promise) => {
 // 启动服务器
 main().catch(console.error);
 
-export { server, specSpriteService };
+export { server, conversationManager };

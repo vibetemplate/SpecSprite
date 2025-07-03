@@ -28,9 +28,9 @@ export class SpecSpriteService {
   private readonly MIN_CONFIDENCE_FOR_PRD = 75;
   private cleanupInterval?: NodeJS.Timeout;
 
-  constructor(mcpServer: any) {
+  constructor(mcpServer: any, conversationManager: ConversationManager) {
     this.llmClient = new CursorLLMClient(mcpServer);
-    this.conversationManager = new ConversationManager();
+    this.conversationManager = conversationManager;
     this.prdBuilder = new PRDBuilder();
     this.promptLoader = new PromptLoader();
   }
