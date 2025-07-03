@@ -502,28 +502,43 @@ export class SpecSpriteService {
     ];
 
     // === 5. 环境配置 ===
-    const envVars = (rawPrd?.environment?.variables && typeof rawPrd.environment.variables === 'object')
-      ? { ...rawPrd.environment.variables }
-      : {};
+    // ---- 环境变量处理 ----
+    // 优先读取原始 PRD 中的 environment 对象
+    const rawVariables = (rawPrd?.environment && typeof rawPrd.environment.variables === 'object')
+      ? rawPrd.environment.variables
+      : null;
 
-    // 确保至少有一个环境变量占位符，避免空对象导致验证失败
+    // 拷贝一份，以免意外修改原对象
+    const envVars: Record<string, string> = { ...(rawVariables || {}) };
+
+    // 如果仍为空，为其添加一个占位符，避免通过 zod 校验时报 "environment.variables: Required"
     if (Object.keys(envVars).length === 0) {
-      envVars['NEXT_PUBLIC_API_URL'] = 'https://example.com';
+      envVars["NEXT_PUBLIC_API_URL"] = "https://example.com";
     }
 
+    // secrets 允许为空，但若缺失则提供一个占位，确保数组存在
     const environment = {
       variables: envVars,
-      secrets: Array.isArray(rawPrd?.environment?.secrets) ? rawPrd.environment.secrets : ['OPENAI_API_KEY']
+      secrets: Array.isArray(rawPrd?.environment?.secrets) && rawPrd.environment.secrets.length > 0
+        ? rawPrd.environment.secrets
+        : ["OPENAI_API_KEY"]
     };
 
     // === 6. 汇总返回 ===
+    // ---- 生成 createdAt ----
+    const isoDateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+    const generatedAtRaw = rawPrd?.metadata?.generated_at as string | undefined;
+    const createdAt = (generatedAtRaw && isoDateRegex.test(generatedAtRaw))
+      ? generatedAtRaw
+      : new Date().toISOString();
+
     const cpPrd: any = {
       project,
       techStack,
       features,
       pages,
       environment,
-      createdAt: rawPrd?.metadata?.generated_at || new Date().toISOString(),
+      createdAt,
       version: rawPrd?.metadata?.version || '1.0.0'
     };
 
