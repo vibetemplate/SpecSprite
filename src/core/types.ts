@@ -72,6 +72,17 @@ export interface PRDSchema {
     team_size?: number;
     complexity_preference?: 'simple' | 'standard' | 'advanced';
   };
+  /**
+   * 运行环境配置。
+   * CodePaladin 的 PRD 校验要求必须包含该字段，
+   * 至少提供 variables 与 secrets 两个键。
+   */
+  environment: {
+    /** 环境变量映射，如 { NEXT_PUBLIC_API_URL: "https://..." } */
+    variables: Record<string, string>;
+    /** 需要在部署阶段手动配置的机密变量 key 列表 */
+    secrets: string[];
+  };
   next_steps: string[];
 }
 

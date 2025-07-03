@@ -41,6 +41,7 @@ export class PRDBuilder {
       const features = this.buildFeatureFlags(session);
       const specifications = this.buildSpecifications(session);
       const constraints = this.buildConstraints(session);
+      const environment = this.buildEnvironment(session);
       const nextSteps = this.buildNextSteps(session);
 
       const prd: PRDSchema = {
@@ -50,6 +51,7 @@ export class PRDBuilder {
         features,
         specifications,
         constraints,
+        environment,
         next_steps: nextSteps
       };
 
@@ -239,6 +241,14 @@ export class PRDBuilder {
       timeline: context.constraints.timeline,
       team_size: context.constraints.team_size,
       complexity_preference: context.constraints.complexity_preference
+    };
+  }
+
+  private buildEnvironment(session: SpecSpriteSession) {
+    // 目前尚未收集环境变量信息，返回空对象占位，满足验证器需求
+    return {
+      variables: {},
+      secrets: [] as string[]
     };
   }
 

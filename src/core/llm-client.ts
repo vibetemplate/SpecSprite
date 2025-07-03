@@ -26,14 +26,126 @@ export class CursorLLMClient {
     try {
       console.error(`🤖 正在请求 LLM 补全...`);
       
+      // ===== 环境探测日志 =====
+      const sdkName = this.mcpServer?.name || this.mcpServer?.serverInfo?.name || 'unknown-sdk';
+      const sdkVersion = this.mcpServer?.version || this.mcpServer?.serverInfo?.version || 'unknown-version';
+      const protocolVersion = this.mcpServer?.protocolVersion || this.mcpServer?.serverInfo?.protocolVersion;
+      console.error(`📦 MCP Server: ${sdkName} v${sdkVersion}${protocolVersion ? ` (protocol ${protocolVersion})` : ''}`);
+      console.error('🛠️  可用接口检测结果', {
+        hasSamplingCreateMessage: typeof this.mcpServer?.sampling?.createMessage === 'function',
+        hasCreateMessage: typeof this.mcpServer?.createMessage === 'function',
+        hasRequestCompletion: typeof this.mcpServer?.requestCompletion === 'function'
+      });
+
       // 通过 MCP 协议向 Cursor 请求 LLM 补全
       // 这里使用 Cursor 提供的 LLM 能力，用户无需任何配置
-      const response = await this.mcpServer.requestCompletion({
-        prompt: request.prompt,
-        temperature: request.temperature || 0.7,
-        max_tokens: request.max_tokens || 2000,
-        context: request.context
-      });
+
+      let response: any;
+      const attempts: { method: string; status: 'success' | 'no-fn' | 'error'; detail?: any }[] = [];
+
+      // 1. 尝试使用新协议 sampling.createMessage （在某些 SDK 中直接暴露为 server.sampling.createMessage）
+      if (typeof this.mcpServer?.sampling?.createMessage === 'function') {
+        try {
+          const raw = await this.mcpServer.sampling.createMessage({
+            messages: [
+              { role: 'user', content: request.prompt }
+            ],
+            temperature: request.temperature ?? 0.7,
+            maxTokens: request.max_tokens ?? 2000,
+            // 可选 systemPrompt（未来从 request.context 或其他字段派生）
+            includeContext: 'thisServer',
+            metadata: request.context
+          });
+
+          response = {
+            content: raw?.content?.text ?? raw?.content ?? '',
+            model: raw?.model,
+            tokens_used: raw?.usage?.total_tokens ?? 0
+          };
+          attempts.push({ method: 'sampling.createMessage', status: 'success' });
+        } catch (err) {
+          console.error('⚠️ sampling.createMessage 调用失败，尝试其他兼容方案...', err);
+          attempts.push({ method: 'sampling.createMessage', status: 'error', detail: err instanceof Error ? err.message : err });
+        }
+      } else {
+        attempts.push({ method: 'sampling.createMessage', status: 'no-fn' });
+      }
+
+      // 2. 兼容 cursor <=2025-04 版本：server.createMessage
+      if (!response) {
+        if (typeof this.mcpServer?.createMessage === 'function') {
+          try {
+            const raw = await this.mcpServer.createMessage({
+              messages: [
+                { role: 'user', content: request.prompt }
+              ],
+              temperature: request.temperature ?? 0.7,
+              max_tokens: request.max_tokens ?? 2000,
+              context: request.context
+            });
+
+            response = {
+              content: raw?.choices?.[0]?.message?.content ?? raw?.content ?? '',
+              model: raw?.model,
+              tokens_used: raw?.usage?.total_tokens ?? 0
+            };
+            attempts.push({ method: 'createMessage', status: 'success' });
+          } catch (err) {
+            console.error('⚠️ createMessage 调用失败，尝试 requestCompletion 回退...', err);
+            attempts.push({ method: 'createMessage', status: 'error', detail: err instanceof Error ? err.message : err });
+          }
+        } else {
+          attempts.push({ method: 'createMessage', status: 'no-fn' });
+        }
+      }
+
+      // 3. 最后回退到旧版 requestCompletion（2016-2024 老协议）
+      if (!response) {
+        const fn = this.mcpServer?.requestCompletion;
+        if (typeof fn === 'function') {
+          try {
+            const raw = await fn.call(this.mcpServer, {
+              prompt: request.prompt,
+              temperature: request.temperature ?? 0.7,
+              max_tokens: request.max_tokens ?? 2000,
+              context: request.context
+            });
+            response = {
+              content: raw?.choices?.[0]?.message?.content ?? raw?.content ?? '',
+              model: raw?.model,
+              tokens_used: raw?.usage?.total_tokens ?? 0
+            };
+            attempts.push({ method: 'requestCompletion', status: 'success' });
+          } catch (err) {
+            console.error('⚠️ requestCompletion 调用失败', err);
+            attempts.push({ method: 'requestCompletion', status: 'error', detail: err instanceof Error ? err.message : err });
+          }
+        } else {
+          attempts.push({ method: 'requestCompletion', status: 'no-fn' });
+        }
+      }
+
+      // 4. 兜底：OpenAI REST（需要 OPENAI_API_KEY）
+      if (!response) {
+        const maybeOpenAIKey = process.env.OPENAI_API_KEY;
+        if (maybeOpenAIKey) {
+          try {
+            const raw = await this.requestViaOpenAI(request, maybeOpenAIKey);
+            response = raw;
+          } catch (err) {
+            console.error('⚠️ OpenAI 兼容调用失败', err);
+          }
+        }
+      }
+
+      // 5. 如果仍然没有响应，则抛错，并附带尝试详情便于排查
+      if (!response) {
+        throw new SpecSpriteError(
+          '无法完成 LLM 补全；各接口尝试结果已记录在 error.data.attempts',
+          'LLM_REQUEST_FAILED',
+          { request, attempts }
+        );
+      }
 
       console.error(`✅ LLM 补全完成`);
 
@@ -348,5 +460,37 @@ ${conversationHistory.slice(-3).map(turn => `${turn.type}: ${turn.content}`).joi
     if (content.includes('不确定') || content.includes('可能')) return 60;
     if (content.includes('建议') || content.includes('推荐')) return 80;
     return 75;
+  }
+
+  /**
+   * 使用 OpenAI 官方 REST 接口的兜底实现
+   */
+  private async requestViaOpenAI(request: LLMRequest, apiKey: string): Promise<{ content: string; model?: string; tokens_used?: number }> {
+    const body = {
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: request.prompt }],
+      temperature: request.temperature ?? 0.7,
+      max_tokens: request.max_tokens ?? 2000
+    };
+
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+      throw new Error(`OpenAI 请求失败: ${res.status} ${res.statusText}`);
+    }
+
+    const json: any = await res.json();
+    return {
+      content: json.choices?.[0]?.message?.content ?? '',
+      model: json.model,
+      tokens_used: json.usage?.total_tokens ?? 0
+    };
   }
 }
