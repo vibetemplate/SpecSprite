@@ -1,8 +1,22 @@
 # SpecSprite (需求精灵)
 
-**VibeGen 双独立 MCP 服务架构 - MCP-1 智能 PRD 生成服务**
+> **VibeGen 双核架构 - MCP-1 需求精灵**
+>
+> `SpecSprite` 是 VibeGen 系统中的"需求精灵"，通过与用户进行专家级的智能对话，将模糊的项目想法一步步转化为一份精确、结构化的产品需求文档 (`prd.json`)。
+>
+> **重要提示**: 此服务是 VibeGen 双核架构的第一环，专注于需求理解和蓝图构建。其最终产物 `prd.json` 将被[代码侠 (CodePaladin)](../CodePaladin/README.md) 用于自动化代码生成。
 
-SpecSprite 是 VibeGen 系统中的"需求精灵"，通过智能对话将模糊的项目想法转化为精确、完整的产品需求文档 (PRD)。
+`SpecSprite` 通过智能对话将模糊的项目想法转化为精确、完整的产品需求文档 (PRD)。
+
+## 架构
+
+[![双核AI架构](https://github.com/vibetemplate/CodePaladin/raw/main/images/tech.png)](https://github.com/vibetemplate/CodePaladin)
+
+SpecSprite 作为独立的 `prd-generator` 服务运行，专注于与用户交互并将需求转化为结构化的 PRD。它与 CodePaladin 共同构成了 VibeGen 的双核系统。
+
+```
+用户 → SpecSprite → PRD → CodePaladin → 项目代码
+```
 
 ## ✨ 核心特性
 
