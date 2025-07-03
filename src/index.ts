@@ -23,10 +23,8 @@ async function main() {
   }
 }
 
-// 只有在直接运行此文件时才启动服务器
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch(console.error);
-}
+// 启动服务器
+main().catch(console.error);
 
 export * from './core/types.js';
 export * from './core/spec-sprite-service.js';
