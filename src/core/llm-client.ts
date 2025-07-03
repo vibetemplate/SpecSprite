@@ -99,12 +99,12 @@ export class CursorLLMClient {
         }
       }
 
-      // 3. 最后回退到旧版 requestCompletion（2016-2024 老协议）
+      // 3. 最后回退到旧版 requestCompletion（兼容老版本 IDE / CLI）
       if (!response) {
-        const fn = this.mcpServer?.requestCompletion;
-        if (typeof fn === 'function') {
+        // 安全检查：确保 mcpServer 和 requestCompletion 确实存在且为函数
+        if (this.mcpServer && typeof this.mcpServer.requestCompletion === 'function') {
           try {
-            const raw = await fn.call(this.mcpServer, {
+            const raw = await this.mcpServer.requestCompletion({
               prompt: request.prompt,
               temperature: request.temperature ?? 0.7,
               max_tokens: request.max_tokens ?? 2000,
@@ -117,10 +117,11 @@ export class CursorLLMClient {
             };
             attempts.push({ method: 'requestCompletion', status: 'success' });
           } catch (err) {
-            console.error('⚠️ requestCompletion 调用失败', err);
+            console.error('⚠️ requestCompletion 调用因执行错误而失败', err);
             attempts.push({ method: 'requestCompletion', status: 'error', detail: err instanceof Error ? err.message : err });
           }
         } else {
+          // 如果函数不存在，则安静地记录下来，而不是抛出错误
           attempts.push({ method: 'requestCompletion', status: 'no-fn' });
         }
       }
